@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MC ELO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="https://example.com/path/to/your/favicon.png">   
+
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --accent: #5865F2; 
+
+            /* Tier Colors */
+            --t-lt5: #7f8c8d; --t-ht5: #bdc3c7;
+            --t-lt4: #2ecc71; --t-ht4: #27ae60;
+            --t-lt3: #3498db; --t-ht3: #2980b9;
+            --t-lt2: #9b59b6; --t-ht2: #8e44ad;
+            --t-lt1: #e67e22; --t-ht1: #e74c3c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif; 
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: -0.5px;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 0.8rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            background: var(--bg-card);
+            border: 1px solid #333;
+            color: var(--text-muted);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .mc-icon {
+            width: 24px;
+            height: 24px;
+            filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.5));
+        }
+
+        .mode-btn:hover { background: #2a2a2a; transform: translateY(-2px); }
+        
+        .mode-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+        }
+
+        .mode-btn[onclick*="overall"] { border-color: #ffd700; color: #ffd700; }
+        .mode-btn[onclick*="overall"]:hover { background: #2a2a10; }
+        .mode-btn[onclick*="overall"].active {
+            background: #ffd700;
+            color: #000;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+        }
+
+        .search-wrapper { flex-grow: 1; position: relative; min-width: 200px; }
+        .search-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+        input[type="text"] {
+            width: 100%; background: var(--bg-card); border: 1px solid #333; color: white;
+            padding: 0.8rem 0.8rem 0.8rem 2.8rem; border-radius: 8px; font-family: 'Inter', sans-serif; transition: border 0.2s;
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+        /* Table & Animations */
+        .leaderboard {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #252525; text-align: left; padding: 1.2rem; font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+        
+        td { padding: 1rem 1.2rem; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        
+        /* Interactive Rows */
+        tbody tr { cursor: pointer; transition: background 0.1s; }
+        tbody tr:hover { background: #2a2a2a; }
+
+        .player-flex { display: flex; align-items: center; gap: 15px; }
+        .player-head { width: 40px; height: 40px; border-radius: 6px; image-rendering: pixelated; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+
+        .tier-badge {
+            padding: 4px 10px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.9rem;
+            color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); font-weight: 800; display: inline-block;
+            min-width: 60px; text-align: center;
+        }
+
+        .rank-num { font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text-muted); width: 30px; display: inline-block; }
+        .ign { font-weight: 600; font-size: 1.0rem; color: #fff; }
+        .elo-value { font-family: 'Inter', sans-serif; font-size: 1.0rem; font-weight: 600; color: var(--text-main); }
+        .id-sub { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* Overview Breakdown Gamemode Tags */
+        .breakdown-container {
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .breakdown-tag {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 4px 8px;
+            font-size: 0.8rem; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .bd-icon { width: 16px; height: 16px; image-rendering: pixelated; }
+        .bd-tier { font-weight: 800; text-shadow: 0 1px 1px rgba(0,0,0,0.5); }
+        .bd-elo { color: var(--text-muted); font-size: 0.75rem;}
+
+        /* --- MODAL STYLES & ANIMATIONS --- */
+        @keyframes overlayFade {
+            from { opacity: 0; backdrop-filter: blur(0px); }
+            to { opacity: 1; backdrop-filter: blur(4px); }
+        }
+
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+
+        /* Class added via JS to trigger animations */
+        .modal-overlay.active {
+            display: flex;
+            animation: overlayFade 0.2s ease forwards;
+        }
+
+        .modal-content {
+            background: var(--bg-card); padding: 2rem; border-radius: 12px; width: 90%; max-width: 500px;
+            position: relative; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            /* Bouncy pop-in animation */
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+        }
+
+        .close-btn {
+            position: absolute; top: 15px; right: 15px; background: none; border: none;
+            color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s;
+        }
+        .close-btn:hover { color: white; transform: scale(1.1); }
+        
+        .modal-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .modal-header img { width: 64px; height: 64px; border-radius: 8px; image-rendering: pixelated; }
+        .modal-ign { font-size: 1.8rem; font-weight: 800; color: white; }
+        .modal-id { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; display: block;}
+        
+        .modal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-card { background: #252525; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #333; transition: transform 0.2s;}
+        .stat-card:hover { transform: translateY(-3px); border-color: #555;}
+        .stat-title { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; font-weight: 800; letter-spacing: 1px;}
+        .stat-val { font-size: 1.2rem; font-weight: 800; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="https://raw.githubusercontent.com/rageddevv/minecraft-assets/refs/heads/master/image.png" class="header-icon" alt="Logo">
+        <h1>MC ELO</h1>
+        <button class="mode-btn" onclick="window.location.href='https://discord.gg/bMpMk99aFM'"><img src="https://imgs.search.brave.com/pWLbyyU8IQsO6oPlSpownXCBMwPq4CfcxT7UsP1eVHQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly91eHdp/bmcuY29tL3dwLWNv/bnRlbnQvdGhlbWVz/L3V4d2luZy9kb3du/bG9hZC9icmFuZHMt/YW5kLXNvY2lhbC1t/ZWRpYS9kaXNjb3Jk/LXJvdW5kLWNvbG9y/LWljb24ucG5n" class="mc-icon">Discord</button>
+    </header>
+
+    <div class="container">
+        <div class="controls">
+            <button class="mode-btn active" onclick="setMode('overall')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/nether_star.png" class="mc-icon">Overall
+            </button>
+            <button class="mode-btn" onclick="setMode('sword')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/diamond_sword.png" class="mc-icon">Sword
+            </button>
+            <button class="mode-btn" onclick="setMode('crystal')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/end_crystal.png" class="mc-icon">Crystal
+            </button>
+            <button class="mode-btn" onclick="setMode('mace')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/mace.png" class="mc-icon">Mace
+            </button>
+            <button class="mode-btn" onclick="setMode('axe')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/diamond_axe.png" class="mc-icon">Axe
+            </button>
+            <button class="mode-btn" onclick="setMode('smp')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/block/grass_block_side.png" class="mc-icon">SMP
+            </button>
+            <button class="mode-btn" onclick="setMode('uhc')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/golden_apple.png" class="mc-icon">UHC
+            </button>
+            <button class="mode-btn" onclick="setMode('npot')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/netherite_helmet.png" class="mc-icon">NPot
+            </button>
+            <button class="mode-btn" onclick="setMode('potion')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/splash_potion.png" class="mc-icon">Potion
+            </button>
+            <button class="mode-btn" onclick="setMode('op')">
+                <img src="https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/diamond_chestplate.png" class="mc-icon">OP
+            </button>
+            <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Search IGN or ID..." onkeyup="filterTable()">
+            </div>
+        </div>
+
+        <div class="leaderboard">
+            <table id="rankTable">
+                <thead id="tableHead">
+                    </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="playerModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeModal(event)"><i class="fa-solid fa-xmark"></i></button>
+            <div id="modalBody">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const rawData = {{ data | tojson }};
+        
+        const tierDefinitions = [
+            { min: 0,    max: 200,  name: "LT5", color: "var(--t-lt5)", points: 2 },
+            { min: 200,  max: 400,  name: "HT5", color: "var(--t-ht5)", points: 8 },
+            { min: 400,  max: 600,  name: "LT4", color: "var(--t-lt4)", points: 14 },
+            { min: 600,  max: 800,  name: "HT4", color: "var(--t-ht4)", points: 20 },
+            { min: 800,  max: 1000, name: "LT3", color: "var(--t-lt3)", points: 28 },
+            { min: 1000, max: 1200, name: "HT3", color: "var(--t-ht3)", points: 34 },
+            { min: 1200, max: 1400, name: "LT2", color: "var(--t-lt2)", points: 41 },
+            { min: 1400, max: 1600, name: "HT2", color: "var(--t-ht2)", points: 48 },
+            { min: 1600, max: 1800, name: "LT1", color: "var(--t-lt1)", points: 54 },
+            { min: 1800, max: 2001, name: "HT1", color: "var(--t-ht1)", points: 60 }
+        ];
+
+        let currentMode = 'overall';
+        let sortedPlayers = [];
+        const allModes = ['sword', 'crystal', 'mace', 'axe', 'smp', 'uhc', "npot", "potion", "op"];
+        
+        const modeIcons = {
+            'sword': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/diamond_sword.png',
+            'crystal': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/end_crystal.png',
+            'mace': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/mace.png',
+            'axe': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/diamond_axe.png',
+            'smp': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/block/grass_block_side.png',
+            'uhc': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/golden_apple.png',
+            'npot': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/netherite_helmet.png',
+            'potion': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/splash_potion.png',
+            'op': 'https://raw.githubusercontent.com/Soumeh/1.21.1-Assets/refs/heads/1.21.1/assets/minecraft/textures/item/diamond_chestplate.png',
+        };
+
+        function getTier(elo) {
+            if (!elo && elo !== 0) return { name: 'N/A', color: '#333', points: 0 };
+            const e = parseInt(elo);
+
+            const found = tierDefinitions.find(t => e >= t.min && e < t.max);
+            if (found) return found;
+
+            if (e >= 2001) return { name: "HT1+", color: "var(--t-ht1)", points: 60 }; 
+            return { name: "N/A", color: "#333", points: 0 };
+        }
+
+        function processData(mode) {
+            const players = [];
+
+            if (mode === 'overall') {
+                for (const [id, info] of Object.entries(rawData)) {
+                    let totalPoints = 0;
+                    let count = 0;
+                    
+                    allModes.forEach(m => {
+                        const key = m + 'elo';
+                        if (info[key]) {
+                            const t = getTier(info[key]);
+                            totalPoints += t.points;
+                            count++;
+                        }
+                    });
+
+                    if (count > 0) {
+                        players.push({ id: id, ign: info.ign, elo: totalPoints, displayElo: totalPoints + " Pts", isOverall: true });
+                    }
+                }
+            } else {
+                const key = mode + 'elo'; 
+                for (const [id, info] of Object.entries(rawData)) {
+                    if (info[key]) {
+                        players.push({
+                            id: id,
+                            ign: info.ign,
+                            elo: parseInt(info[key]),
+                            displayElo: info[key],
+                            isOverall: false
+                        });
+                    }
+                }
+            }
+            players.sort((a, b) => b.elo - a.elo);
+            return players;
+        }
+
+        function renderTable(players) {
+            const tbody = document.getElementById('tableBody');
+            
+            tbody.classList.remove('fade-in');
+            void tbody.offsetWidth; 
+            tbody.classList.add('fade-in');
+
+            tbody.innerHTML = '';
+
+            if (players.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 3rem; color: var(--text-muted);">No players ranked in this mode yet.</td></tr>`;
+                return;
+            }
+
+            players.forEach((p, index) => {
+                const faceUrl = `https://starlightskins.lunareclipse.studio/render/default/${p.ign}/face`;
+                let rowHTML = '';
+
+                if (p.isOverall) {
+                    let breakdownHTML = '<div class="breakdown-container">';
+                    allModes.forEach(m => {
+                        const key = m + 'elo';
+                        if (rawData[p.id] && rawData[p.id][key]) {
+                            const modeElo = rawData[p.id][key];
+                            const modeTier = getTier(modeElo);
+                            breakdownHTML += `
+                                <div class="breakdown-tag" title="${m.toUpperCase()}: ${modeElo} Elo">
+                                    <img src="${modeIcons[m]}" class="bd-icon">
+                                    <span class="bd-tier" style="color: ${modeTier.color}">${modeTier.name}</span>
+                                    <span class="bd-elo">${modeElo}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    breakdownHTML += '</div>';
+
+                    rowHTML = `
+                        <tr onclick="openModal('${p.id}')">
+                            <td><span class="rank-num">#${index + 1}</span></td>
+                            <td>
+                                <div class="player-flex">
+                                    <img src="${faceUrl}" class="player-head" onerror="this.src='https://minotar.net/helm/${p.ign}/40.png'">
+                                    <div>
+                                        <div class="ign">${p.ign}</div>
+                                        <span class="id-sub">${p.id}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="elo-value" style="color: #ffd700; font-weight: 800;">${p.displayElo}</span></td>
+                            <td>${breakdownHTML}</td>
+                        </tr>
+                    `;
+                } else {
+                    const tier = getTier(p.elo);
+                    rowHTML = `
+                        <tr onclick="openModal('${p.id}')">
+                            <td><span class="rank-num">#${index + 1}</span></td>
+                            <td>
+                                <div class="player-flex">
+                                    <img src="${faceUrl}" class="player-head" onerror="this.src='https://minotar.net/helm/${p.ign}/40.png'">
+                                    <div>
+                                        <div class="ign">${p.ign}</div>
+                                        <span class="id-sub">${p.id}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="tier-badge" style="background-color: ${tier.color}">${tier.name}</span></td>
+                            <td><span class="elo-value">${p.displayElo}</span></td>
+                        </tr>
+                    `;
+                }
+                
+                tbody.innerHTML += rowHTML;
+            });
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.innerText.toLowerCase().includes(mode)) btn.classList.add('active');
+            });
+
+            const thead = document.getElementById('tableHead');
+            if (mode === 'overall') {
+                thead.innerHTML = `
+                    <tr>
+                        <th width="10%">Rank</th>
+                        <th width="30%">Player</th>
+                        <th width="15%">Points</th>
+                        <th width="45%">Gamemodes Breakdown</th>
+                    </tr>
+                `;
+            } else {
+                thead.innerHTML = `
+                    <tr>
+                        <th width="10%">Rank</th>
+                        <th width="45%">Player</th>
+                        <th width="20%">Tier</th>
+                        <th width="25%">Elo</th>
+                    </tr>
+                `;
+            }
+
+            sortedPlayers = processData(mode);
+            filterTable(); 
+        }
+
+        function filterTable() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = sortedPlayers.filter(p => 
+                p.ign.toLowerCase().includes(term) || p.id.includes(term)
+            );
+            renderTable(filtered);
+        }
+
+        // --- Modal Logic ---
+        function openModal(id) {
+            const player = rawData[id];
+            if(!player) return;
+
+            const faceUrl = `https://starlightskins.lunareclipse.studio/render/default/${player.ign}/face`;
+            
+            let statsHTML = '';
+            let totalPoints = 0;
+
+            allModes.forEach(m => {
+                const key = m + 'elo';
+                if (player[key]) {
+                    const tier = getTier(player[key]);
+                    totalPoints += tier.points;
+                    statsHTML += `
+                        <div class="stat-card">
+                            <div class="stat-title">${m}</div>
+                            <div class="stat-val">${player[key]} ELO</div>
+                            <span class="tier-badge" style="background-color: ${tier.color}">${tier.name}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            if (statsHTML === '') {
+                statsHTML = `<div style="grid-column: span 2; text-align: center; color: var(--text-muted);">No ranked data available.</div>`;
+            }
+
+            const modalContent = `
+                <div class="modal-header">
+                    <img src="${faceUrl}" onerror="this.src='https://minotar.net/helm/${player.ign}/64.png'">
+                    <div>
+                        <div class="modal-ign">${player.ign}</div>
+                        <span class="modal-id">ID: ${id}</span>
+                        <span class="modal-id" style="color: #ffd700; font-weight: bold; margin-top: 5px;">Total Points: ${totalPoints} Pts</span>
+                    </div>
+                </div>
+                <div class="modal-stats">
+                    ${statsHTML}
+                </div>
+            `;
+
+            document.getElementById('modalBody').innerHTML = modalContent;
+            // Add the active class to trigger the CSS animation
+            document.getElementById('playerModal').classList.add('active');
+        }
+
+        function closeModal(e) {
+            // Remove the active class to hide the modal and reset the animation
+            document.getElementById('playerModal').classList.remove('active');
+        }
+
+        setMode('overall');
+
+    </script>
+</body>
+</html>
